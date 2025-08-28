@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Text Refiner</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Text Refiner</h1>
+        <a class="link" href="#" id="openOptions">Options</a>
+      </header>
+
+      <section>
+        <label class="label">Selected Text</label>
+        <textarea id="selectedText" readonly></textarea>
+      </section>
+
+      <section>
+        <label class="label">Prompt</label>
+        <textarea id="prompt" placeholder="e.g., Improve clarity and fix grammar."></textarea>
+        <div id="savedPrompts" class="chips"></div>
+      </section>
+
+      <section>
+        <div class="row">
+          <button id="sendBtn">Send</button>
+          <button id="replaceBtn" disabled>Replace</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+      </section>
+
+      <section>
+        <label class="label">AI Suggestion</label>
+        <textarea id="aiResult" placeholder="Response will appear here..."></textarea>
+        <div class="row end">
+          <button id="copyBtn" class="secondary">Copy</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+  </html>
+
