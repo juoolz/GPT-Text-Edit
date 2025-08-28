@@ -17,8 +17,13 @@
 
       <section>
         <label class="label" for="model">Model</label>
-        <input id="model" type="text" value="gpt-4o-mini" />
-        <small class="hint">Examples: gpt-4o-mini, gpt-4.1-mini</small>
+        <select id="model">
+          <option value="gpt-4o-mini">gpt-4o-mini (fast, affordable)</option>
+          <option value="gpt-4o">gpt-4o</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+          <option value="gpt-4.1">gpt-4.1</option>
+        </select>
+        <small class="hint">Choose a default model for refinement.</small>
       </section>
 
       <section>
@@ -47,4 +52,3 @@
     <script src="options.js" type="module"></script>
   </body>
   </html>
-

@@ -36,7 +36,16 @@ function enforceLimit() {
 async function load() {
   const { apiKey = '', model = 'gpt-4o-mini', prompts = [] } = await chrome.storage.sync.get(['apiKey', 'model', 'prompts']);
   apiKeyEl.value = apiKey;
-  modelEl.value = model || 'gpt-4o-mini';
+  // Ensure the saved model is selectable even if not in the default list
+  const savedModel = model || 'gpt-4o-mini';
+  const hasOption = Array.from(modelEl.options).some(o => o.value === savedModel);
+  if (!hasOption) {
+    const opt = document.createElement('option');
+    opt.value = savedModel;
+    opt.textContent = `${savedModel} (saved)`;
+    modelEl.appendChild(opt);
+  }
+  modelEl.value = savedModel;
   promptsWrap.innerHTML = '';
   (Array.isArray(prompts) ? prompts : []).slice(0, 5).forEach((p) => {
     promptsWrap.appendChild(buildRow(p));
@@ -67,4 +76,3 @@ addPromptBtn.addEventListener('click', () => {
 saveBtn.addEventListener('click', save);
 
 load();
-

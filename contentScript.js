@@ -79,7 +79,42 @@
     }
   }
 
-  function replaceInContentEditable(text) {
+  function escapeHTML(s) {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function simpleTextToHTML(text) {
+    // Convert plain text to basic HTML: paragraphs and <br>
+    const paras = text.split(/\n{2,}/).map(p => `<p>${escapeHTML(p).replace(/\n/g, '<br>')}</p>`);
+    return paras.join('');
+  }
+
+  function insertHTMLAtRange(range, html) {
+    // Try execCommand first (many editors hook into it)
+    const ok = document.execCommand && document.execCommand('insertHTML', false, html);
+    if (ok) return true;
+    // Fallback: use Range to insert a DocumentFragment
+    const frag = range.createContextualFragment(html);
+    range.deleteContents();
+    range.insertNode(frag);
+    // Move caret to end of inserted content
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      const r = document.createRange();
+      r.selectNodeContents(range.endContainer);
+      r.collapse(false);
+      sel.addRange(r);
+    }
+    return true;
+  }
+
+  function replaceInContentEditable(text, html) {
     const sel = window.getSelection();
     let range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
     if ((!range || sel.isCollapsed) && lastRange) {
@@ -89,13 +124,8 @@
       range = sel.getRangeAt(0);
     }
     if (!range) return false;
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    // Move caret after inserted text
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    return true;
+    const htmlToInsert = (typeof html === 'string' && html.trim()) ? html : simpleTextToHTML(text);
+    return insertHTMLAtRange(range, htmlToInsert);
   }
 
   function replaceInInputOrTextarea(el, text) {
@@ -114,6 +144,7 @@
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'replaceSelection') {
       const text = String(msg.text ?? '');
+      const html = typeof msg.html === 'string' ? msg.html : undefined;
       // Try input/textarea first if focused
       const active = document.activeElement;
       const isTextControl = active && (active.tagName === 'TEXTAREA' ||
@@ -122,7 +153,7 @@
       if (isTextControl) {
         ok = replaceInInputOrTextarea(active, text);
       }
-      if (!ok) ok = replaceInContentEditable(text);
+      if (!ok) ok = replaceInContentEditable(text, html);
       sendResponse({ ok });
       return true;
     }
@@ -135,4 +166,3 @@
     if (e.key === 'Escape') scheduleHide();
   });
 })();
-

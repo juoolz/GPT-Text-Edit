@@ -4,7 +4,7 @@ body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-
 h1 { font-size: 18px; }
 section { margin: 12px 0; }
 .label { display: block; margin-bottom: 6px; font-weight: 600; }
-input[type="text"], input[type="password"], textarea {
+input[type="text"], input[type="password"], select, textarea {
   width: 100%; padding: 8px; border-radius: 6px;
   border: 1px solid color-mix(in oklab, CanvasText 20%, transparent);
   background: color-mix(in oklab, Canvas 97%, CanvasText 3%);
@@ -17,4 +17,3 @@ button { padding: 6px 10px; border-radius: 6px; border: 1px solid color-mix(in o
 .prompt-row { display: grid; grid-template-columns: 1fr 3fr auto; gap: 8px; align-items: start; margin: 8px 0; }
 .hint { opacity: 0.8; font-size: 12px; }
 .status { margin-left: 8px; font-size: 12px; opacity: 0.8; }
-

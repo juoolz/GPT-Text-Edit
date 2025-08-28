@@ -45,12 +45,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       if (msg?.type === "replaceSelectionInTab") {
-        const { tabId, text } = msg;
+        const { tabId, text, html } = msg;
         if (tabId == null) {
           sendResponse({ ok: false, error: "Missing tabId" });
           return;
         }
-        await chrome.tabs.sendMessage(tabId, { type: "replaceSelection", text });
+        await chrome.tabs.sendMessage(tabId, { type: "replaceSelection", text, html });
         sendResponse({ ok: true });
         return;
       }
@@ -72,4 +72,3 @@ async function tryOpenPopup() {
     // Silently ignore; user can click the action icon to open manually.
   }
 }
-

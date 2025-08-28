@@ -128,15 +128,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  function looksLikeHTML(s) {
+    // naive check for HTML tags
+    return /<\w+[\s\S]*>/m.test(s);
+  }
+
   replaceBtn.addEventListener('click', async () => {
     const out = aiResultEl.value.trim();
     if (!out || tab?.id == null) return;
+    const maybeHtml = looksLikeHTML(out) ? out : undefined;
     try {
-      await chrome.runtime.sendMessage({ type: 'replaceSelectionInTab', tabId: tab.id, text: out });
+      await chrome.runtime.sendMessage({ type: 'replaceSelectionInTab', tabId: tab.id, text: out, html: maybeHtml });
       window.close();
     } catch (e) {
       // leave popup open on failure
     }
   });
 });
-
