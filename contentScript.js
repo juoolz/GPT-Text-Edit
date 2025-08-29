@@ -114,7 +114,26 @@
     return true;
   }
 
-  function replaceInContentEditable(text, html) {
+  function insertTextAtRange(range, text) {
+    // Prefer execCommand insertText for editor integrations
+    const ok = document.execCommand && document.execCommand('insertText', false, text);
+    if (ok) return true;
+    // Fallback to range operations
+    range.deleteContents();
+    const node = document.createTextNode(text);
+    range.insertNode(node);
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      const r = document.createRange();
+      r.setStartAfter(node);
+      r.collapse(true);
+      sel.addRange(r);
+    }
+    return true;
+  }
+
+  function replaceInContentEditable(text, html, format) {
     const sel = window.getSelection();
     let range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
     if ((!range || sel.isCollapsed) && lastRange) {
@@ -124,6 +143,9 @@
       range = sel.getRangeAt(0);
     }
     if (!range) return false;
+    if (format === 'plain') {
+      return insertTextAtRange(range, text);
+    }
     const htmlToInsert = (typeof html === 'string' && html.trim()) ? html : simpleTextToHTML(text);
     return insertHTMLAtRange(range, htmlToInsert);
   }
@@ -145,6 +167,7 @@
     if (msg?.type === 'replaceSelection') {
       const text = String(msg.text ?? '');
       const html = typeof msg.html === 'string' ? msg.html : undefined;
+      const format = typeof msg.format === 'string' ? msg.format : undefined;
       // Try input/textarea first if focused
       const active = document.activeElement;
       const isTextControl = active && (active.tagName === 'TEXTAREA' ||
@@ -153,7 +176,7 @@
       if (isTextControl) {
         ok = replaceInInputOrTextarea(active, text);
       }
-      if (!ok) ok = replaceInContentEditable(text, html);
+      if (!ok) ok = replaceInContentEditable(text, html, format);
       sendResponse({ ok });
       return true;
     }

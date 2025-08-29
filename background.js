@@ -45,12 +45,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       if (msg?.type === "replaceSelectionInTab") {
-        const { tabId, text, html } = msg;
+        const { tabId, text, html, format } = msg;
         if (tabId == null) {
           sendResponse({ ok: false, error: "Missing tabId" });
           return;
         }
-        await chrome.tabs.sendMessage(tabId, { type: "replaceSelection", text, html });
+        await chrome.tabs.sendMessage(tabId, { type: "replaceSelection", text, html, format });
         sendResponse({ ok: true });
         return;
       }
