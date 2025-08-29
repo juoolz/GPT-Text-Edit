@@ -7,6 +7,7 @@
   let lastRange = null;
   let lastSelectionText = "";
   let hideTimer = null;
+  let lastTextControl = null; // { el: HTMLInputElement|HTMLTextAreaElement, start: number, end: number }
 
   function ensureButton() {
     if (buttonEl) return buttonEl;
@@ -59,6 +60,56 @@
     btn.style.top = `${top}px`;
     btn.style.left = `${left}px`;
     btn.style.display = 'block';
+  }
+
+  function isTextControlEl(el) {
+    return !!(el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|url|tel|password|email)$/i.test(el.type))));
+  }
+
+  function recordActiveTextControl() {
+    const el = document.activeElement;
+    if (isTextControlEl(el)) {
+      const start = el.selectionStart != null ? el.selectionStart : 0;
+      const end = el.selectionEnd != null ? el.selectionEnd : start;
+      lastTextControl = { el, start, end };
+    }
+  }
+
+  function nodeInEditable(node) {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el) return false;
+    if (document.designMode && document.designMode.toLowerCase() === 'on') return true;
+    return !!el.isContentEditable;
+  }
+
+  function canReplaceNow() {
+    // 1) Focused text control (must be editable and have selection APIs)
+    const active = document.activeElement;
+    if (isTextControlEl(active)) {
+      if (!active.disabled && !active.readOnly && active.selectionStart != null && active.selectionEnd != null) {
+        return { can: true, via: 'active-textcontrol' };
+      }
+    }
+    // 2) Previously saved text control (still present and editable, with valid indices)
+    if (lastTextControl && lastTextControl.el && document.contains(lastTextControl.el)) {
+      const el = lastTextControl.el;
+      const len = typeof el.value === 'string' ? el.value.length : 0;
+      const start = Math.max(0, Math.min(len, lastTextControl.start ?? 0));
+      const end = Math.max(start, Math.min(len, lastTextControl.end ?? start));
+      if (!el.disabled && !el.readOnly && Number.isFinite(start) && Number.isFinite(end)) {
+        return { can: true, via: 'saved-textcontrol' };
+      }
+    }
+    // 3) Live contenteditable selection (non-collapsed inside editable region)
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const r = sel.getRangeAt(0);
+      if (nodeInEditable(r.startContainer)) {
+        return { can: true, via: 'live-contenteditable' };
+      }
+    }
+    // Be conservative: do not rely on saved ranges
+    return { can: false, via: 'none' };
   }
 
   function scheduleHide() {
@@ -163,18 +214,42 @@
     return true;
   }
 
+  function replaceInSavedTextControl(text) {
+    const rec = lastTextControl;
+    if (!rec || !rec.el || !document.contains(rec.el)) return false;
+    const el = rec.el;
+    const start = typeof rec.start === 'number' ? rec.start : 0;
+    const end = typeof rec.end === 'number' ? rec.end : start;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    el.value = before + text + after;
+    const pos = before.length + text.length;
+    // Do not force focus; just update selection positions safely
+    try { el.selectionStart = el.selectionEnd = pos; } catch {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg?.type === 'canReplace') {
+      const { can, via } = canReplaceNow();
+      sendResponse({ ok: true, canReplace: can, via });
+      return true;
+    }
     if (msg?.type === 'replaceSelection') {
       const text = String(msg.text ?? '');
       const html = typeof msg.html === 'string' ? msg.html : undefined;
       const format = typeof msg.format === 'string' ? msg.format : undefined;
       // Try input/textarea first if focused
       const active = document.activeElement;
-      const isTextControl = active && (active.tagName === 'TEXTAREA' ||
-        (active.tagName === 'INPUT' && /^(text|search|url|tel|password|email)$/i.test(active.type)));
+      const isTextControl = isTextControlEl(active);
       let ok = false;
       if (isTextControl) {
         ok = replaceInInputOrTextarea(active, text);
+      }
+      if (!ok) {
+        // If we previously recorded a text control selection, try that
+        ok = replaceInSavedTextControl(text);
       }
       if (!ok) ok = replaceInContentEditable(text, html, format);
       sendResponse({ ok });
@@ -188,4 +263,10 @@
   document.addEventListener('keyup', (e) => {
     if (e.key === 'Escape') scheduleHide();
   });
+  // Track input/textarea selection states so we can replace after popup steals focus
+  document.addEventListener('selectionchange', recordActiveTextControl, { passive: true });
+  document.addEventListener('mouseup', recordActiveTextControl, { passive: true });
+  document.addEventListener('keyup', recordActiveTextControl, { passive: true });
+  document.addEventListener('focusin', (e) => { if (isTextControlEl(e.target)) recordActiveTextControl(); }, { passive: true });
+  document.addEventListener('select', (e) => { if (isTextControlEl(e.target)) recordActiveTextControl(); }, { passive: true });
 })();

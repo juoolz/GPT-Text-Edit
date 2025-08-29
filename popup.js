@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const copyBtn = document.getElementById('copyBtn');
   const openOptions = document.getElementById('openOptions');
   const outputFormatEl = document.getElementById('outputFormat');
+  const formatSection = document.getElementById('formatSection');
 
   const tab = await getActiveTab();
   const selection = tab?.id != null ? await getSelectionForTab(tab.id) : '';
@@ -89,6 +90,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const val = outputFormatEl.value;
     await chrome.storage.sync.set({ outputFormat: val });
   });
+
+  // Query capability to replace on this tab and hide UI if not possible
+  async function updateReplaceCapability() {
+    try {
+      if (tab?.id == null) return;
+      const res = await chrome.runtime.sendMessage({ type: 'canReplaceInTab', tabId: tab.id });
+      const canReplace = !!res?.canReplace;
+      replaceBtn.style.display = canReplace ? '' : 'none';
+      formatSection.style.display = canReplace ? '' : 'none';
+    } catch (e) {
+      // If check fails, leave Replace visible to avoid blocking users
+    }
+  }
+  updateReplaceCapability();
 
   function setBusy(busy) {
     sendBtn.disabled = busy;
